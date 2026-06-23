@@ -1,0 +1,11 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+
+# Local design reference export — not part of the website
+Winx Carpentry.html
+
+# Node (only if tooling is ever added)
+node_modules/

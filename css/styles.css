@@ -771,6 +771,25 @@ body.menu-open .nav-overlay { transform: translateY(0); visibility: visible; }
 }
 @keyframes scrolldown { 0% { transform: translateY(-115%); } 55%, 100% { transform: translateY(235%); } }
 
+/* Mobile hero — content stays at the BOTTOM (as before). The hero is locked to
+   exactly one screen (height:100svh, clipped) so you can't scroll within it or
+   past the header, and the SCROLL cue is visible on first view. A header-height
+   top pad + tighter type keep the content from riding up under the header. */
+@media (max-width: 768px) {
+  .hero {
+    height: 100svh;
+    padding-top: calc(var(--header-h-shrunk) + 0.5rem);
+  }
+  .hero__inner { padding-bottom: clamp(3.4rem, 9vh, 5rem); }   /* clears the SCROLL cue */
+  .hero__title { font-size: clamp(2rem, 1.25rem + 4.4vw, 3rem); }
+  .hero__sub { font-size: var(--step-0); line-height: 1.5; }
+  .hero__eyebrow { margin-bottom: 0.8rem; }
+  .hero__row { margin-top: 1.2rem; gap: 1rem; }
+  .hero__actions { width: 100%; }
+  .hero__actions .btn { flex: 1 1 auto; justify-content: center; }
+  .hero__trust { margin-top: 0.9rem; }
+}
+
 @keyframes winxRise { from { opacity: 0; transform: translateY(115%); } to { opacity: 1; transform: translateY(0); } }
 @keyframes winxFade { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 

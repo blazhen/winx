@@ -109,13 +109,15 @@
     gsap.registerPlugin(window.ScrollTrigger);
     document.documentElement.classList.add("has-motion");
 
-    /* 4a. Hero — cinematic scroll: pin, zoom into the photo, then split
-       it apart like doors to reveal the statement behind. Desktop + motion
-       only; on smaller screens / reduced-motion the photo simply sits still
-       (the two halves form one seamless image) and the headline shows. */
+    /* 4a. Hero — cinematic scroll: pin, zoom into the photo, then split it apart
+       to reveal the statement. Desktop/tablet only — on phones the pinned scroll
+       + moving pieces are unreliable (address-bar resize, sideways overflow), so
+       the photo simply sits still (the four pieces form one image) and the
+       headline word-rise / fades still play. */
     const hero = $("[data-hero]");
     const doors = $("[data-hero-doors]");
-    if (hero && doors) {
+    const heroSplitOK = window.matchMedia("(min-width: 769px)").matches;
+    if (hero && doors && heroSplitOK) {
       const zooms = $$("[data-hero-zoom]");
       const tl_ = $('[data-hero-piece="tl"]');
       const tr_ = $('[data-hero-piece="tr"]');
@@ -476,6 +478,7 @@
       refreshers.push(update);
 
       /* drag with momentum */
+      const DRAG = 0.6;   // < 1 = the track moves slower than the finger/cursor
       let down = false, moved = false, startX = 0, startScroll = 0, lastX = 0, vx = 0, raf = 0;
       const stopRAF = () => { if (raf) { cancelAnimationFrame(raf); raf = 0; } };
       const momentum = () => {
@@ -496,19 +499,19 @@
       });
       track.addEventListener("pointermove", (e) => {
         if (!down) return;
-        const dx = e.clientX - lastX;
+        const dx = (e.clientX - lastX) * DRAG;
         lastX = e.clientX;
-        vx = vx * 0.6 + dx * 0.4; // smoothed velocity
+        vx = vx * 0.6 + dx * 0.4; // smoothed velocity (already scaled by DRAG)
         if (Math.abs(e.clientX - startX) > 4) moved = true;
-        track.scrollLeft = startScroll - (e.clientX - startX);
+        track.scrollLeft = startScroll - (e.clientX - startX) * DRAG;
       });
       const endDrag = (e) => {
         if (!down) return;
         down = false;
         track.classList.remove("is-dragging");
         try { track.releasePointerCapture(e.pointerId); } catch (_) {}
-        if (!prefersReduced && Math.abs(vx) > 1.2) {
-          vx *= 14; // throw distance
+        if (!prefersReduced && Math.abs(vx) > 1) {
+          vx *= 9; // gentler release fling
           stopRAF();
           raf = requestAnimationFrame(momentum);
         }

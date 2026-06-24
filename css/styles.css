@@ -523,7 +523,27 @@ body.menu-open .nav-overlay { transform: translateY(0); visibility: visible; }
   gap: 1.1rem;
   text-align: center;
   padding: var(--gutter);
-  background: var(--bg);
+  /* the fitout photo, only gently darkened for text legibility — the moving
+     shadow below keeps the far side dark; the lamp's side reads near-normal */
+  background-color: #0E0D0C;
+  background-image:
+    radial-gradient(130% 120% at 50% 32%, rgba(14,13,12,0.42), rgba(14,13,12,0.66) 75%),
+    url("../assets/img/office-corridor-fitout.jpg");
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat;
+}
+/* a moving shadow: dark across the room EXCEPT a clear pool on the lamp's side,
+   so the real photo reads lighter/normal there and dark on the far side.
+   Its centre tracks the shared --swing (same as the lamp). Neutral, no tint. */
+.hero__reveal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(80% 120% at calc(50% - var(--swing, 0) * 36%) 36%,
+    rgba(14,13,12,0) 14%, rgba(14,13,12,0.5) 56%, rgba(14,13,12,0.86) 86%);
 }
 .hero__reveal-eyebrow {
   position: relative;
@@ -552,12 +572,13 @@ body.menu-open .nav-overlay { transform: translateY(0); visibility: visible; }
     var(--text) 73%,
     var(--text) 100%);
   background-size: 210% 100%;
-  /* glow position tracks the same --swing as the lamp, matched to its travel */
-  background-position: calc(50% - var(--swing, 0) * 9%) 0;
+  /* glow position tracks the same --swing as the lamp (on the lamp's side) */
+  background-position: calc(50% + var(--swing, 0) * 9%) 0;
   -webkit-background-clip: text;
           background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
+  filter: drop-shadow(0 2px 18px rgba(0, 0, 0, 0.55));   /* legible over the lit photo */
 }
 .hero__reveal-text em { font-style: normal; }
 
@@ -606,7 +627,7 @@ body.menu-open .nav-overlay { transform: translateY(0); visibility: visible; }
   transform: translateX(-50%);
   width: clamp(340px, 54vw, 800px);
   height: clamp(360px, 64vh, 760px);
-  background: radial-gradient(ellipse 42% 72% at 50% 0%, rgba(220,168,119,0.34), rgba(200,136,79,0.10) 40%, transparent 70%);
+  background: radial-gradient(ellipse 44% 74% at 50% 0%, rgba(245,238,224,0.42), rgba(224,206,178,0.12) 42%, transparent 72%);
   /* top edge ≈ shade diameter (~10% of beam width), flaring to full width */
   clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%);
   mix-blend-mode: screen;
@@ -996,12 +1017,21 @@ body.menu-open .nav-overlay { transform: translateY(0); visibility: visible; }
   grid-template-columns: 1fr;
 }
 .process__visual {
+  display: none;                 /* mobile: per-step images used instead */
   position: relative;
   border-radius: var(--radius);
   overflow: hidden;
   aspect-ratio: 4 / 5;
   background: var(--surface-2);
 }
+.process__step-img {
+  border-radius: var(--radius);
+  overflow: hidden;
+  aspect-ratio: 16 / 11;
+  margin-bottom: 1.3rem;
+  background: var(--surface-2);
+}
+.process__step-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .process__visual .pv {
   position: absolute;
   inset: 0;
@@ -1024,7 +1054,7 @@ body.menu-open .nav-overlay { transform: translateY(0); visibility: visible; }
 .process__step {
   padding: clamp(1.4rem, 1rem + 2vw, 2.4rem) 0;
   border-top: 1px solid var(--hairline);
-  opacity: 0.4;
+  opacity: 1;                    /* mobile: every step fully visible */
   transition: opacity 0.4s var(--ease);
 }
 .process__step:last-child { border-bottom: 1px solid var(--hairline); }
@@ -1038,6 +1068,19 @@ body.menu-open .nav-overlay { transform: translateY(0); visibility: visible; }
 }
 .process__step h3 { font-size: var(--step-3); margin-top: 0.5rem; }
 .process__step p { color: var(--muted); margin-top: 0.6rem; max-width: 48ch; }
+
+/* Mobile process — a plain stacked list (photo → step number → heading → text,
+   one after another). Each step fades + rises in as it scrolls into view (JS).
+   Desktop keeps the sticky swapping visual. */
+@media (max-width: 899px) {
+  .process__step-img { margin-bottom: 1rem; }
+  .process__step + .process__step { margin-top: clamp(2rem, 1rem + 4vw, 3.5rem); }
+  .process__step-head h3 { font-size: var(--step-2); }
+  .process__step-head .step-k { display: block; margin-bottom: 0.3rem; }
+}
+@media (min-width: 900px) {
+  .process__step-head { display: contents; }            /* desktop: wrapper has no effect */
+}
 
 /* 16. PROJECTS GALLERY -------------------------------------- */
 .filters {
@@ -1791,7 +1834,9 @@ body.intro-lock { overflow: hidden; }
   .split--media-left { grid-template-columns: 0.9fr 1.1fr; }
   .cards { grid-template-columns: repeat(3, 1fr); }
   .process__layout { grid-template-columns: 0.95fr 1.05fr; align-items: start; }
-  .process__visual { position: sticky; top: calc(var(--header-h-shrunk) + 2rem); }
+  .process__visual { display: block; position: sticky; top: calc(var(--header-h-shrunk) + 2rem); }
+  .process__step-img { display: none; }            /* desktop uses the sticky visual */
+  .process__step { opacity: 0.4; }                  /* dim inactive steps on desktop */
   .quotes { grid-template-columns: repeat(3, 1fr); }
   .contact-layout { grid-template-columns: 1.3fr 0.7fr; align-items: start; }
   .cta-band__inner { grid-template-columns: 1.4fr 0.6fr; }

@@ -132,8 +132,8 @@
         scrollTrigger: {
           trigger: hero,
           start: "top top",
-          end: "+=95%",
-          scrub: 0.35,
+          end: "+=150%",
+          scrub: 0.5,
           pin: true,
           anticipatePin: 1,
           invalidateOnRefresh: true,   // recompute on mobile address-bar resize
@@ -319,18 +319,47 @@
   function initProcess(gsap) {
     const steps = $$("[data-process-step]");
     const visuals = $$("[data-process-visual]");
-    if (!steps.length || !visuals.length) return;
-    const setActive = (i) => {
-      steps.forEach((s, n) => s.classList.toggle("is-active", n === i));
-      visuals.forEach((v, n) => v.classList.toggle("is-active", n === i));
-    };
-    setActive(0);
-    steps.forEach((step, i) => {
-      window.ScrollTrigger.create({
-        trigger: step,
-        start: "top 60%",
-        end: "bottom 60%",
-        onToggle: (self) => { if (self.isActive) setActive(i); },
+    if (!steps.length || !gsap.matchMedia) return;
+    const mm = gsap.matchMedia();
+
+    /* DESKTOP — the sticky image swaps as the active step changes */
+    mm.add("(min-width: 900px)", () => {
+      if (!visuals.length) return;
+      const setActive = (i) => {
+        steps.forEach((s, n) => s.classList.toggle("is-active", n === i));
+        visuals.forEach((v, n) => v.classList.toggle("is-active", n === i));
+      };
+      setActive(0);
+      steps.forEach((step, i) => {
+        window.ScrollTrigger.create({
+          trigger: step,
+          start: "top 60%",
+          end: "bottom 60%",
+          onToggle: (self) => { if (self.isActive) setActive(i); },
+        });
+      });
+    });
+
+    /* MOBILE — pin the section. Each step's photo shrinks bottom→top in place
+       (its height collapses, pushed by the text), then the body collapses too,
+       leaving the step number + heading, which stack up at the top. */
+    mm.add("(max-width: 899px)", () => {
+      // plain stacked list — each step's photo, heading and text fade + rise in
+      // as the step scrolls into view (staggered). No pin, no collapse.
+      steps.forEach((step) => {
+        const parts = [
+          step.querySelector(".process__step-img"),
+          step.querySelector(".process__step-head"),
+          step.querySelector("p"),
+        ].filter(Boolean);
+        gsap.from(parts, {
+          autoAlpha: 0,
+          y: 38,
+          duration: 0.9,
+          ease: "power3.out",
+          stagger: 0.09,
+          scrollTrigger: { trigger: step, start: "top 82%" },
+        });
       });
     });
   }

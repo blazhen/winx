@@ -9,3 +9,6 @@ Winx Carpentry.html
 
 # Node (only if tooling is ever added)
 node_modules/
+
+# Paste-helper splits for GoHighLevel (scratch, not part of the site)
+split/

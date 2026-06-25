@@ -443,8 +443,26 @@
       const track = $("[data-slider-track]", slider);
       if (!track) return;
       const progress = $("[data-slider-progress]", slider);
-      const cards = $$(".pcard", track);
+      // slides = every direct child except the trailing spacer (works for
+      // image .pcard slides AND text .card slides)
+      const cards = Array.from(track.children).filter((el) => !el.classList.contains("pad"));
       const stair = track.hasAttribute("data-slider-stair") && !prefersReduced;
+      // .pslider--cards is an interactive carousel on mobile, but a plain CSS grid on desktop
+      const mobileOnly = slider.classList.contains("pslider--cards");
+
+      // optional progress dots (one per slide, click to jump)
+      const dotsWrap = $("[data-slider-dots]", slider);
+      const dots = [];
+      if (dotsWrap && cards.length) {
+        cards.forEach((c, i) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.setAttribute("aria-label", "Show item " + (i + 1));
+          b.addEventListener("click", () => { track.scrollTo({ left: c.offsetLeft - 8, behavior: "smooth" }); });
+          dotsWrap.appendChild(b);
+          dots.push(b);
+        });
+      }
 
       const clamp = () => {
         const max = track.scrollWidth - track.clientWidth;
@@ -455,6 +473,10 @@
         const max = track.scrollWidth - track.clientWidth;
         const pct = max > 0 ? track.scrollLeft / max : 0;
         if (progress) progress.style.left = pct * 82 + "%";
+        if (dots.length) {
+          const active = Math.round(pct * (dots.length - 1));
+          dots.forEach((d, i) => d.classList.toggle("is-active", i === active));
+        }
         const w = track.clientWidth || 1;
         cards.forEach((card) => {
           // position of the card's centre relative to the track's centre (layout-based, no feedback)
@@ -477,7 +499,7 @@
       };
       refreshers.push(update);
 
-      /* drag with momentum */
+      /* drag with momentum — shared state lives here so it survives activate/deactivate */
       const DRAG = 0.6;   // < 1 = the track moves slower than the finger/cursor
       let down = false, moved = false, startX = 0, startScroll = 0, lastX = 0, vx = 0, raf = 0;
       const stopRAF = () => { if (raf) { cancelAnimationFrame(raf); raf = 0; } };
@@ -487,24 +509,6 @@
         clamp();
         if (Math.abs(vx) > 0.5) { raf = requestAnimationFrame(momentum); } else { raf = 0; }
       };
-
-      track.addEventListener("dragstart", (e) => e.preventDefault());
-      track.addEventListener("pointerdown", (e) => {
-        if (e.pointerType === "mouse" && e.button !== 0) return;
-        down = true; moved = false; vx = 0;
-        startX = lastX = e.clientX; startScroll = track.scrollLeft;
-        stopRAF();
-        track.classList.add("is-dragging");
-        try { track.setPointerCapture(e.pointerId); } catch (_) {}
-      });
-      track.addEventListener("pointermove", (e) => {
-        if (!down) return;
-        const dx = (e.clientX - lastX) * DRAG;
-        lastX = e.clientX;
-        vx = vx * 0.6 + dx * 0.4; // smoothed velocity (already scaled by DRAG)
-        if (Math.abs(e.clientX - startX) > 4) moved = true;
-        track.scrollLeft = startScroll - (e.clientX - startX) * DRAG;
-      });
       const endDrag = (e) => {
         if (!down) return;
         down = false;
@@ -516,52 +520,99 @@
           raf = requestAnimationFrame(momentum);
         }
       };
-      track.addEventListener("pointerup", endDrag);
-      track.addEventListener("pointercancel", endDrag);
-      // Suppress click navigation if the pointer was dragged
-      track.addEventListener("click", (e) => { if (moved) { e.preventDefault(); } }, true);
 
-      /* vertical wheel → horizontal, releasing to the page at the ends */
-      track.addEventListener("wheel", (e) => {
-        if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // native horizontal/trackpad
-        const max = track.scrollWidth - track.clientWidth;
-        const atStart = track.scrollLeft <= 0;
-        const atEnd = track.scrollLeft >= max - 1;
-        if ((e.deltaY < 0 && atStart) || (e.deltaY > 0 && atEnd)) return;
+      /* All drag/wheel/keyboard/cursor wiring lives in activate(); deactivate()
+         tears it down via AbortController so .pslider--cards can fall back to a
+         static grid on desktop without leaving stray handlers behind. */
+      let ac = null, cursorEl = null;
+      function activate() {
+        if (ac) return;
+        ac = new AbortController();
+        const sig = { signal: ac.signal };
+
+        track.addEventListener("dragstart", (e) => e.preventDefault(), sig);
+        track.addEventListener("pointerdown", (e) => {
+          if (e.pointerType === "mouse" && e.button !== 0) return;
+          down = true; moved = false; vx = 0;
+          startX = lastX = e.clientX; startScroll = track.scrollLeft;
+          stopRAF();
+          track.classList.add("is-dragging");
+          try { track.setPointerCapture(e.pointerId); } catch (_) {}
+        }, sig);
+        track.addEventListener("pointermove", (e) => {
+          if (!down) return;
+          const dx = (e.clientX - lastX) * DRAG;
+          lastX = e.clientX;
+          vx = vx * 0.6 + dx * 0.4; // smoothed velocity (already scaled by DRAG)
+          if (Math.abs(e.clientX - startX) > 4) moved = true;
+          track.scrollLeft = startScroll - (e.clientX - startX) * DRAG;
+        }, sig);
+        track.addEventListener("pointerup", endDrag, sig);
+        track.addEventListener("pointercancel", endDrag, sig);
+        // Suppress click navigation if the pointer was dragged
+        track.addEventListener("click", (e) => { if (moved) { e.preventDefault(); } }, { capture: true, signal: ac.signal });
+
+        /* vertical wheel → horizontal, releasing to the page at the ends */
+        track.addEventListener("wheel", (e) => {
+          if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // native horizontal/trackpad
+          const max = track.scrollWidth - track.clientWidth;
+          const atStart = track.scrollLeft <= 0;
+          const atEnd = track.scrollLeft >= max - 1;
+          if ((e.deltaY < 0 && atStart) || (e.deltaY > 0 && atEnd)) return;
+          stopRAF();
+          track.scrollLeft += e.deltaY;
+          e.preventDefault();
+          e.stopPropagation();
+        }, { passive: false, signal: ac.signal });
+
+        /* keyboard: arrow keys advance by ~one card */
+        track.addEventListener("keydown", (e) => {
+          const step = (cards[0] ? cards[0].offsetWidth : 360) + 20;
+          if (e.key === "ArrowRight") { track.scrollBy({ left: step, behavior: "smooth" }); e.preventDefault(); }
+          if (e.key === "ArrowLeft") { track.scrollBy({ left: -step, behavior: "smooth" }); e.preventDefault(); }
+        }, sig);
+
+        /* custom drag-cursor badge (fine pointer + motion only) */
+        if (fineHover && !prefersReduced) {
+          cursorEl = document.createElement("div");
+          cursorEl.className = "pslider__cursor";
+          cursorEl.setAttribute("aria-hidden", "true");
+          cursorEl.innerHTML = "<span>Drag ↔</span>";
+          slider.appendChild(cursorEl);
+          track.classList.add("has-cursor");
+          const place = (e) => {
+            const s = down ? 0.82 : 1;
+            cursorEl.style.transform =
+              `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%) scale(${s})`;
+          };
+          track.addEventListener("pointerenter", (e) => { cursorEl.classList.add("is-on"); place(e); }, sig);
+          track.addEventListener("pointerleave", () => cursorEl.classList.remove("is-on"), sig);
+          track.addEventListener("pointermove", place, sig);
+        }
+      }
+      function deactivate() {
+        if (!ac) return;
+        ac.abort(); ac = null;
         stopRAF();
-        track.scrollLeft += e.deltaY;
-        e.preventDefault();
-        e.stopPropagation();
-      }, { passive: false });
-
-      /* keyboard: arrow keys advance by ~one card */
-      track.addEventListener("keydown", (e) => {
-        const step = (cards[0] ? cards[0].offsetWidth : 360) + 20;
-        if (e.key === "ArrowRight") { track.scrollBy({ left: step, behavior: "smooth" }); e.preventDefault(); }
-        if (e.key === "ArrowLeft") { track.scrollBy({ left: -step, behavior: "smooth" }); e.preventDefault(); }
-      });
-
-      /* custom drag-cursor badge (fine pointer + motion only) */
-      if (fineHover && !prefersReduced) {
-        const cursor = document.createElement("div");
-        cursor.className = "pslider__cursor";
-        cursor.setAttribute("aria-hidden", "true");
-        cursor.innerHTML = "<span>Drag ↔</span>";
-        slider.appendChild(cursor);
-        track.classList.add("has-cursor");
-        const place = (e) => {
-          const s = down ? 0.82 : 1;
-          cursor.style.transform =
-            `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%) scale(${s})`;
-        };
-        track.addEventListener("pointerenter", (e) => { cursor.classList.add("is-on"); place(e); });
-        track.addEventListener("pointerleave", () => cursor.classList.remove("is-on"));
-        track.addEventListener("pointermove", place);
+        down = false;
+        track.classList.remove("is-dragging", "has-cursor");
+        if (cursorEl) { cursorEl.remove(); cursorEl = null; }
+        track.scrollLeft = 0; // hand layout back to the CSS grid
+        update();
       }
 
       track.addEventListener("scroll", update, { passive: true });
       window.addEventListener("resize", update, { passive: true });
       window.addEventListener("load", update);
+
+      if (mobileOnly) {
+        const mq = window.matchMedia("(max-width: 768px)");
+        const sync = () => { if (mq.matches) activate(); else deactivate(); };
+        if (mq.addEventListener) mq.addEventListener("change", sync); else mq.addListener(sync);
+        sync();
+      } else {
+        activate();
+      }
       update();
     });
 

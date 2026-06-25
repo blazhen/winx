@@ -1351,6 +1351,95 @@ body.menu-open .nav-overlay { transform: translateY(0); visibility: visible; }
 }
 .pslider__hint { font-size: var(--step--1); color: var(--muted); letter-spacing: 0.04em; white-space: nowrap; }
 
+/* services — photo-top tiles, a swipe carousel on mobile / a 3-up grid on desktop */
+.pslider--cards .card { min-height: 0; }   /* let the photo + body define the height */
+
+.card--photo { padding: 0; gap: 0; }
+.card--photo .card__media {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 11;
+  overflow: hidden;
+}
+.card--photo .card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.7s var(--ease);
+}
+.card--photo:hover .card__media img { transform: scale(1.06); }
+.card--photo .card__media::after {        /* keep the number legible over any photo */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(14,13,12,0.5), transparent 48%);
+  pointer-events: none;
+}
+.card--photo .index-num {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.9rem;
+  z-index: 2;
+  color: var(--text);
+  text-shadow: 0 2px 14px rgba(0,0,0,0.65);
+}
+.card--photo .card__body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: clamp(1.2rem, 0.9rem + 1.2vw, 1.7rem);
+}
+.card--photo .card__body p { margin: 0; }
+
+/* MOBILE / narrow → horizontal swipe carousel */
+@media (max-width: 768px) {
+  .pslider--cards .card { flex: 0 0 clamp(255px, 76vw, 330px); }
+}
+/* on touch there is no hover, so always show the Explore cue */
+@media (hover: none) {
+  .pslider--cards .card-go { opacity: 1; transform: none; }
+}
+
+/* DESKTOP → plain 3-up grid, aligned to the page width (no scroll/drag) */
+@media (min-width: 769px) {
+  .pslider--cards .pslider__track {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+    overflow: visible;
+    cursor: default;
+    padding-block: 0;
+    max-width: var(--wrap);
+    margin-inline: auto;
+    -webkit-user-select: auto;
+    user-select: auto;
+  }
+  .pslider--cards .pslider__track .pad { display: none; }
+  .pslider--cards .pslider__dots { display: none; }
+}
+
+.pslider__dots {
+  display: flex;
+  gap: 0.55rem;
+  justify-content: center;
+  padding-inline: var(--gutter);
+  margin-top: 1.8rem;
+}
+.pslider__dots button {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hairline-strong);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.3s var(--ease), transform 0.3s var(--ease);
+}
+.pslider__dots button:hover { background: var(--muted); }
+.pslider__dots button.is-active { background: var(--accent); transform: scale(1.35); }
+
 /* 16c. CARD STACK (home featured) — cards pile up on scroll --- */
 .cardstack { display: flex; flex-direction: column; gap: clamp(1.5rem, 4vh, 3.5rem); }
 .cardstack__card {
